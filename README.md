@@ -1,21 +1,20 @@
-# Fedora-Ready
-What is Fedora-Ready?
-
+# What is Fedora-Ready?
 Fedora-Ready is an automated setup script that transforms your Fedora Linux installation into a fully optimized multimedia and development system in minutes. It handles all the tedious configuration tasks that users typically need to do manually after installing Fedora.
 
-To launch, use a single command in the terminal:
+To launch, use a single command in the terminal
+
 Quick start:
 ```bash
 bash <(curl -sSL https://raw.githubusercontent.com/TheZenitiK/Fedora-Ready/refs/heads/main/fedora-ready.sh)
 ```
-Download, save, and run manually:
+Local installation, cloning the repository:
 ```bash
 git clone https://github.com/TheZenitiK/Fedora-Ready.git
 cd Fedora-Ready
 sudo bash fedora-ready.sh
 ```
 
-The script automates 11 major configuration tasks:
+The script has 11 settings:
 
 1. System Updates — Automatic OS updates via dnf or rpm-ostree
 2. Cisco OpenH264 — Video codec installation with 403 error fix
@@ -28,3 +27,5 @@ The script automates 11 major configuration tasks:
 9. Touchpad Context Menu — Enable right-click on touchpads
 10. NVIDIA Drivers — Auto-detect and install GPU drivers (optional)
 11. Full Setup Mode — Execute all tasks sequentially with one option
++ 11. NVIDIA Drivers — Auto-detect and install GPU drivers (optional)
+
