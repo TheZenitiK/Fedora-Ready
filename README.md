@@ -27,5 +27,4 @@ The script has 11 settings:
 9. Touchpad Context Menu — Enable right-click on touchpads
 10. NVIDIA Drivers — Auto-detect and install GPU drivers (optional)
 11. Full Setup Mode — Execute all tasks sequentially with one option
-```diff + 11. NVIDIA Drivers — Auto-detect and install GPU drivers (optional)
 
