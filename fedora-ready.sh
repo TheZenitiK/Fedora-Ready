@@ -1,9 +1,9 @@
 #!/bin/bash
 
 ################################################################################
-#                               Fedora-Ready                                   #
+#                                  Fedora-Ready                                #
 #                            Author: TheZenitiK                                #
-#                              Version: 0.1                                    #
+#                                Version: 0.1                                #
 ################################################################################
 
 set -e
@@ -21,7 +21,6 @@ NC='\033[0m'
 # Utility functions
 print_header() {
     clear
-    # Цвета (на случай, если они не объявлены выше)
     local CYAN='\033[0;36m'
     local BLUE='\033[0;34m'
     local GREEN='\033[0;32m'
@@ -30,11 +29,10 @@ print_header() {
     local BOLD='\033[1m'
     local NC='\033[0m'
 
-    # Функция для автоматического выравнивания текста внутри рамки
     print_line() {
         local text="$1"
-        local visible_length="$2" # Длина текста БЕЗ учета невидимых ANSI-кодов цвета
-        local total_width=64       # Фиксированная внутренняя ширина окна
+        local visible_length="$2"
+        local total_width=64
         local pad=$((total_width - visible_length))
         
         echo -e "${CYAN}║${NC}${text}$(printf '%*s' $pad '')${CYAN}║${NC}"
@@ -49,9 +47,9 @@ print_header() {
     print_line "     ${BOLD}${CYAN}██║     ███████╗██████╔╝╚██████╔╝██║  ██║██║  ██║${NC}" 54
     print_line "     ${BOLD}${CYAN}╚═╝     ╚══════╝╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝${NC}" 54
     print_line "" 0
-    print_line "           ${BOLD}${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}" 45
-    print_line "              ${BOLD}${BLUE}     ✦ Fedora-Ready ✦ ${NC}" 36
-    print_line "           ${BOLD}${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}" 45
+    print_line "            ${BOLD}${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}" 45
+    print_line "               ${BOLD}${BLUE}     ✦ Fedora-Ready ✦ ${NC}" 36
+    print_line "            ${BOLD}${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}" 45
     print_line "" 0
     print_line "         ${BOLD}${GREEN}➤${NC} ${BOLD}${WHITE}Author:${NC} ${YELLOW}TheZenitiK${NC}" 29
     print_line "         ${BOLD}${GREEN}➤${NC} ${BOLD}${WHITE}Version:${NC}${YELLOW}0.1${NC}" 22
@@ -59,7 +57,6 @@ print_header() {
     echo -e "${CYAN}╚════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
 }
-
 
 progress() {
     echo -e "${GREEN}✓${NC} $1"
@@ -152,19 +149,29 @@ setup_rpmfusion() {
     fi
 }
 
-# Install Cisco OpenH264
+# Install Cisco OpenH264 with 403 Mitigation & Update Fix
 install_openh264() {
-    section "Installing Cisco OpenH264 codec"
+    section "Fixing Cisco OpenH264 403 error & Installing codecs"
     
-    info "Adding Fedora openh264 repository..."
-    sudo dnf config-manager --set-enabled fedora-cisco-openh264 2>/dev/null || \
-    sudo dnf config-manager --add-repo https://fedora.pkgs.staginglab.stdcdn.fastly.net/openh264/ 2>/dev/null
+    info "Applying Cisco OpenH264 mitigation (fixing 403 Forbidden issues)..."
+    sudo bash -c 'cat > /etc/yum.repos.d/fedora-cisco-openh264.repo' << 'EOF'
+[fedora-cisco-openh264]
+name=Fedora $releasever cisco-openh264 (Mitigated)
+baseurl=https://fedora.pkgs.staginglab.stdcdn.fastly.net/openh264/
+enabled=1
+metadata_expire=7d
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-$releasever-$basearch
+skip_if_unavailable=True
+EOF
+
+    sudo dnf config-manager --set-enabled fedora-cisco-openh264 2>/dev/null || true
     
     info "Installing openh264..."
     if sudo dnf install -y openh264 gstreamer1-plugin-openh264 mozilla-openh264 2>/dev/null; then
-        progress "Cisco OpenH264 codec installed successfully"
+        progress "Cisco OpenH264 codec installed and 403 error mitigated successfully"
     else
-        warning "OpenH264 installation had issues, continuing..."
+        warning "OpenH264 installation had issues, but repository is mitigated for updates."
     fi
 }
 
@@ -254,7 +261,6 @@ enable_touchpad_rightclick() {
 install_nvidia_drivers() {
     section "Installing NVIDIA drivers"
     
-    # Check if NVIDIA GPU is present
     if ! detect_nvidia_gpu; then
         error "No NVIDIA GPU detected on this system"
         info "NVIDIA drivers are only for systems with NVIDIA graphics cards"
@@ -264,20 +270,17 @@ install_nvidia_drivers() {
     local gpu_model=$(get_nvidia_gpu_info)
     info "Detected NVIDIA GPU: ${WHITE}$gpu_model${NC}"
     
-    # Check if already installed
     if rpm -q akmod-nvidia &>/dev/null; then
         progress "NVIDIA drivers already installed"
         nvidia-smi 2>/dev/null && progress "NVIDIA drivers are working" || warning "Drivers installed but may need reload"
         return 0
     fi
     
-    # Setup RPM Fusion first if not already done
     if ! rpm -q rpmfusion-nonfree-release &>/dev/null; then
         info "RPM Fusion Nonfree required for NVIDIA drivers, installing..."
         setup_rpmfusion
     fi
     
-    # Install NVIDIA drivers
     info "Installing NVIDIA drivers and dependencies..."
     sudo dnf install -y gcc kernel-devel akmod-nvidia xorg-x11-drv-nvidia xorg-x11-drv-nvidia-libs 2>/dev/null || {
         error "Failed to install NVIDIA drivers"
@@ -290,7 +293,6 @@ install_nvidia_drivers() {
     progress "NVIDIA drivers installed successfully"
     info "Please reboot your system for changes to take effect"
     
-    # Try to show GPU info
     if command -v nvidia-smi &>/dev/null; then
         echo ""
         info "NVIDIA GPU Information:"
@@ -323,7 +325,6 @@ system_update() {
 
 # Menu display
 print_menu() {
-    # Цветовая палитра (Modern Dark / Neon)
     local PURPLE='\033[0;35m'
     local CYAN='\033[0;36m'
     local GREEN='\033[0;32m'
@@ -333,14 +334,12 @@ print_menu() {
     local RED='\033[0;31m'
     local NC='\033[0m'
 
-    # Вспомогательная функция для красивого вывода пунктов
     print_item() {
         local num="$1"
         local text="$2"
         local num_color="$3"
-        local text_color="${4:-$WHITE}" # По умолчанию текст белый, если не задан другой
+        local text_color="${4:-$WHITE}"
         
-        # Выравнивание номеров (двузначные не сдвигают текст)
         printf "  %b%2s%b │ %b%s%b\n" "$num_color" "$num" "$GRAY" "$text_color" "$text" "$NC"
     }
 
@@ -352,32 +351,31 @@ print_menu() {
     
     echo -e "\n${CYAN}📦 REPOSITORIES & CODECS${NC}"
     print_item "2"  "Setup RPM Fusion repositories" "${PURPLE}"
-    print_item "3"  "Install Cisco OpenH264 codec"  "${PURPLE}"
+    print_item "3"  "Install Cisco OpenH264 codec (with 403 fix)" "${PURPLE}"
     print_item "4"  "Install multimedia codecs"     "${PURPLE}"
     print_item "5"  "System update"                 "${PURPLE}"
     
     echo -e "\n${CYAN}🛠️  SYSTEM TWEAKS${NC}"
     print_item "6"  "Restore window buttons (minimize/maximize)" "${PURPLE}"
     print_item "7"  "Configure screenshot shortcut (Win+Shift+S)" "${PURPLE}"
-    print_item "8"  "Set language switching (Alt+Shift)"          "${PURPLE}"
+    print_item "8"  "Set language switching (Alt+Shift)"         "${PURPLE}"
     print_item "9"  "Install GNOME Extensions"                   "${PURPLE}"
     print_item "10" "Enable right-click on touchpad"             "${PURPLE}"
     
-    echo -e "" # Небольшой отступ перед важным пунктом
-    print_item "11" "Install NVIDIA drivers (if available)"       "${BRIGHT_GREEN}" "${BRIGHT_GREEN}"
+    echo -e ""
+    print_item "11" "Install NVIDIA drivers (if available)"        "${BRIGHT_GREEN}" "${BRIGHT_GREEN}"
     
     echo -e "\n${GRAY}──────────────────────────────────────────${NC}"
     print_item "0"  "Exit" "${RED}" "${RED}"
     echo ""
 }
 
-
-# Apply all settings
+# Apply all settings (OpenH264/403 mitigation goes first)
 apply_all() {
     section "Applying all settings..."
     
-    setup_rpmfusion && sleep 1
     install_openh264 && sleep 1
+    setup_rpmfusion && sleep 1
     install_multimedia_codecs && sleep 1
     system_update && sleep 1
     restore_window_buttons && sleep 1
@@ -386,7 +384,6 @@ apply_all() {
     install_gnome_extensions && sleep 1
     enable_touchpad_rightclick && sleep 1
     
-    # Check for NVIDIA GPU
     if detect_nvidia_gpu; then
         read -p "$(echo -e ${YELLOW})NVIDIA GPU detected. Install NVIDIA drivers? (y/n):$(echo -e ${NC}) " -n 1 -r
         echo
