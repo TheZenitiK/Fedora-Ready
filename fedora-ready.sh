@@ -3,7 +3,7 @@
 ################################################################################
 #                                  Fedora-Ready                                #
 #                            Author: TheZenitiK                                #
-#                                Version: 0.3                                #
+#                                Version: 0.2                                #
 ################################################################################
 
 set -e
@@ -35,7 +35,7 @@ print_header() {
         local total_width=64
         local pad=$((total_width - visible_length))
         
-        echo -e "${CYAN}║${NC}${text}$(printf '\%*s'$pad '')${CYAN}║${NC}"
+        echo -e "${CYAN}║${NC}${text}$(printf '%*s' $pad '')${CYAN}║${NC}"
     }
 
     echo -e "${CYAN}╔════════════════════════════════════════════════════════════════╗${NC}"
@@ -51,8 +51,8 @@ print_header() {
     print_line "               ${BOLD}${BLUE}     ✦ Fedora-Ready ✦ ${NC}" 36
     print_line "            ${BOLD}${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}" 45
     print_line "" 0
-    print_line "         ${BOLD}${GREEN}➤${NC}${BOLD}${WHITE}Author:${NC} ${YELLOW}TheZenitiK${NC}" 29
-    print_line "         ${BOLD}${GREEN}➤${NC}${BOLD}${WHITE}Version:${NC}${YELLOW}0.3${NC}" 22
+    print_line "         ${BOLD}${GREEN}➤${NC} ${BOLD}${WHITE}Author:${NC} ${YELLOW}TheZenitiK${NC}" 29
+    print_line "         ${BOLD}${GREEN}➤${NC} ${BOLD}${WHITE}Version:${NC}${YELLOW}0.2${NC}" 22
     print_line "" 0
     echo -e "${CYAN}╚════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
@@ -147,32 +147,32 @@ setup_rpmfusion() {
         }
         progress "RPM Fusion Nonfree installed"
     fi
+    
+    # Обновляем метаданные после добавления репозиториев
+    sudo dnf makecache
 }
 
-# Fix Cisco OpenH264 geoblock / timeout issues for RF
+# Fix Cisco OpenH264 & Codecs Mitigation
 install_openh264() {
-    section "Cisco OpenH264 Geoblock Fix (RF Optimization)"
+    section "Configuring Cisco OpenH264 & Codecs Mitigation"
     
-    info "Disabling and neutralizing problematic Cisco openh264 repo to prevent update freezes..."
-    
-    # Отключаем репозиторий через конфиг-менеджер и удаляем/блогируем файлы `.repo` если они есть
+    info "Disabling problematic Cisco openh264 repository and setting up clean fallback..."
     sudo dnf config-manager --set-disabled fedora-cisco-openh264 2>/dev/null || true
-    if [ -f /etc/yum.repos.d/fedora-cisco-openh264.repo ]; then
-        sudo sed -i 's/enabled=1/enabled=0/g' /etc/yum.repos.d/fedora-cisco-openh264.repo 2>/dev/null || true
-    fi
     
-    # Удаляем конфликтующие пакеты cisco, которые вешают систему при попытке скачать извне
-    sudo dnf remove -y openh264 mozilla-openh264 gstreamer1-plugin-openh264 2>/dev/null || true
+    # Убираем конфликтующие пакеты / ставим корректную замену если требуется
+    sudo dnf remove -y openh264 mozilla-openh264 2>/dev/null || true
     
-    progress "Cisco OpenH264 successfully bypassed to prevent update timeouts"
+    progress "Cisco openh264 repository handled safely"
 }
 
 # Install multimedia codecs & VA-API hardware acceleration
 install_multimedia_codecs() {
     section "Installing multimedia codecs, FFmpeg & Hardware Acceleration (VA-API)"
     
+    # Сначала гарантируем наличие RPM Fusion
     setup_rpmfusion
 
+    # Включаем полный ffmpeg (переход с free на nonfree версию)
     info "Switching to full multimedia codecs from RPM Fusion..."
     sudo dnf swap -y ffmpeg-free ffmpeg --allowerasing 2>/dev/null || sudo dnf install -y ffmpeg --allowerasing 2>/dev/null || warning "FFmpeg swap/install note"
 
@@ -206,7 +206,7 @@ restore_window_buttons() {
     if gsettings set org.gnome.desktop.wm.preferences button-layout "appmenu:minimize,maximize,close" 2>/dev/null; then
         progress "Window buttons restored"
     else
-        warning "Could not set window buttons (run in user session if needed)"
+        error "Failed to restore window buttons"
     fi
 }
 
@@ -217,7 +217,7 @@ configure_screenshot() {
     if gsettings set org.gnome.settings-daemon.plugins.media-keys screenshot "['<Super>shift+s']" 2>/dev/null; then
         progress "Screenshot shortcut configured"
     else
-        warning "Could not configure screenshot shortcut"
+        error "Failed to configure screenshot"
     fi
 }
 
@@ -228,7 +228,7 @@ setup_language_switching() {
     if gsettings set org.gnome.desktop.input-sources xkb-options "['grp:alt_shift_toggle']" 2>/dev/null; then
         progress "Language switching configured"
     else
-        warning "Could not configure language switching"
+        error "Failed to configure language switching"
     fi
 }
 
@@ -236,7 +236,7 @@ setup_language_switching() {
 install_gnome_extensions() {
     section "Installing GNOME Extensions"
     
-    info "Installing extension manager and tweaks..."
+    info "Installing extension manager..."
     if sudo dnf install -y gnome-extensions-app gnome-shell-extensions gnome-tweaks 2>/dev/null; then
         progress "GNOME Extensions installed"
     else
@@ -352,7 +352,7 @@ print_menu() {
     
     echo -e "\n${CYAN}📦 REPOSITORIES & CODECS${NC}"
     print_item "2"  "Setup RPM Fusion repositories" "${PURPLE}"
-    print_item "3"  "Cisco OpenH264 bypass (RF fix)" "${PURPLE}"
+    print_item "3"  "Cisco OpenH264 mitigation & cleanup" "${PURPLE}"
     print_item "4"  "Install multimedia codecs & VA-API" "${PURPLE}"
     print_item "5"  "System update"                 "${PURPLE}"
     
@@ -371,7 +371,7 @@ print_menu() {
     echo ""
 }
 
-# Apply all settings in correct order (Cisco fix goes first)
+# Apply all settings (OpenH264 mitigation first, then codecs & rest)
 apply_all() {
     section "Applying all settings..."
     
@@ -386,7 +386,7 @@ apply_all() {
     enable_touchpad_rightclick && sleep 1
     
     if detect_nvidia_gpu; then
-        read -p "$(echo -e${YELLOW})NVIDIA GPU detected. Install NVIDIA drivers? (y/n):$(echo -e${NC}) " -n 1 -r
+        read -p "$(echo -e ${YELLOW})NVIDIA GPU detected. Install NVIDIA drivers? (y/n):$(echo -e ${NC}) " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             install_nvidia_drivers
@@ -406,60 +406,60 @@ main() {
         print_header
         print_menu
         echo ""
-        read -p "$(echo -e${MAGENTA})Enter your choice:$(echo -e${NC}) " choice
+        read -p "$(echo -e ${MAGENTA})Enter your choice:$(echo -e ${NC}) " choice
         echo ""
         
         case $choice in
             1)
                 check_root
                 apply_all
-                read -p "$(echo -e${YELLOW})Press Enter to continue...$(echo -e${NC})"
+                read -p "$(echo -e ${YELLOW})Press Enter to continue...$(echo -e ${NC})"
                 ;;
             2)
                 check_root
                 setup_rpmfusion
-                read -p "$(echo -e${YELLOW})Press Enter to continue...$(echo -e${NC})"
+                read -p "$(echo -e ${YELLOW})Press Enter to continue...$(echo -e ${NC})"
                 ;;
             3)
                 check_root
                 install_openh264
-                read -p "$(echo -e${YELLOW})Press Enter to continue...$(echo -e${NC})"
+                read -p "$(echo -e ${YELLOW})Press Enter to continue...$(echo -e ${NC})"
                 ;;
             4)
                 check_root
                 install_multimedia_codecs
-                read -p "$(echo -e${YELLOW})Press Enter to continue...$(echo -e${NC})"
+                read -p "$(echo -e ${YELLOW})Press Enter to continue...$(echo -e ${NC})"
                 ;;
             5)
                 check_root
                 system_update
-                read -p "$(echo -e${YELLOW})Press Enter to continue...$(echo -e${NC})"
+                read -p "$(echo -e ${YELLOW})Press Enter to continue...$(echo -e ${NC})"
                 ;;
             6)
                 restore_window_buttons
-                read -p "$(echo -e${YELLOW})Press Enter to continue...$(echo -e${NC})"
+                read -p "$(echo -e ${YELLOW})Press Enter to continue...$(echo -e ${NC})"
                 ;;
             7)
                 configure_screenshot
-                read -p "$(echo -e${YELLOW})Press Enter to continue...$(echo -e${NC})"
+                read -p "$(echo -e ${YELLOW})Press Enter to continue...$(echo -e ${NC})"
                 ;;
             8)
                 setup_language_switching
-                read -p "$(echo -e${YELLOW})Press Enter to continue...$(echo -e${NC})"
+                read -p "$(echo -e ${YELLOW})Press Enter to continue...$(echo -e ${NC})"
                 ;;
             9)
                 check_root
                 install_gnome_extensions
-                read -p "$(echo -e${YELLOW})Press Enter to continue...$(echo -e${NC})"
+                read -p "$(echo -e ${YELLOW})Press Enter to continue...$(echo -e ${NC})"
                 ;;
             10)
                 enable_touchpad_rightclick
-                read -p "$(echo -e${YELLOW})Press Enter to continue...$(echo -e${NC})"
+                read -p "$(echo -e ${YELLOW})Press Enter to continue...$(echo -e ${NC})"
                 ;;
             11)
                 check_root
                 install_nvidia_drivers
-                read -p "$(echo -e${YELLOW})Press Enter to continue...$(echo -e${NC})"
+                read -p "$(echo -e ${YELLOW})Press Enter to continue...$(echo -e ${NC})"
                 ;;
             0)
                 echo -e "${GREEN}Thank you for using Fedora-Ready!${NC}"
