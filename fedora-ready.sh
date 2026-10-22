@@ -47,9 +47,9 @@ print_header() {
     print_line "     ${BOLD}${CYAN}██║     ███████╗██████╔╝╚██████╔╝██║  ██║██║  ██║${NC}" 54
     print_line "     ${BOLD}${CYAN}╚═╝     ╚══════╝╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝${NC}" 54
     print_line "" 0
-    print_line "            ${BOLD}${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}" 45
-    print_line "           ${BOLD}${BLUE}     ✦ Fedora-Ready ✦ ${NC}" 36
-    print_line "            ${BOLD}${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}" 45
+    print_line "            ${BOLD}${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}" 44
+    print_line "               ${BOLD}${BLUE}     ✦ Fedora-Ready ✦ ${NC}" 35
+    print_line "            ${BOLD}${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}" 44
     print_line "" 0
     print_line "         ${BOLD}${GREEN}➤${NC} ${BOLD}${WHITE}Author:${NC} ${YELLOW}TheZenitiK${NC}" 29
     print_line "         ${BOLD}${GREEN}➤${NC} ${BOLD}${WHITE}Version:${NC}${YELLOW}0.2${NC}" 22
