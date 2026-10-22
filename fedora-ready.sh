@@ -3,7 +3,7 @@
 ################################################################################
 #                                  Fedora-Ready                                #
 #                            Author: TheZenitiK                                #
-#                                Version: 0.1                                #
+#                                Version: 0.2                                #
 ################################################################################
 
 set -e
@@ -52,7 +52,7 @@ print_header() {
     print_line "            ${BOLD}${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}" 45
     print_line "" 0
     print_line "         ${BOLD}${GREEN}➤${NC} ${BOLD}${WHITE}Author:${NC} ${YELLOW}TheZenitiK${NC}" 29
-    print_line "         ${BOLD}${GREEN}➤${NC} ${BOLD}${WHITE}Version:${NC}${YELLOW}0.1${NC}" 22
+    print_line "         ${BOLD}${GREEN}➤${NC} ${BOLD}${WHITE}Version:${NC}${YELLOW}0.2${NC}" 22
     print_line "" 0
     echo -e "${CYAN}╚════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
@@ -147,55 +147,56 @@ setup_rpmfusion() {
         }
         progress "RPM Fusion Nonfree installed"
     fi
+    
+    # Обновляем метаданные после добавления репозиториев
+    sudo dnf makecache
 }
 
-# Install Cisco OpenH264 with 403 Mitigation & Update Fix
+# Fix Cisco OpenH264 & Codecs Mitigation
 install_openh264() {
-    section "Fixing Cisco OpenH264 403 error & Installing codecs"
+    section "Configuring Cisco OpenH264 & Codecs Mitigation"
     
-    info "Applying Cisco OpenH264 mitigation (fixing 403 Forbidden issues)..."
-    sudo bash -c 'cat > /etc/yum.repos.d/fedora-cisco-openh264.repo' << 'EOF'
-[fedora-cisco-openh264]
-name=Fedora $releasever cisco-openh264 (Mitigated)
-baseurl=https://fedora.pkgs.staginglab.stdcdn.fastly.net/openh264/
-enabled=1
-metadata_expire=7d
-gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-$releasever-$basearch
-skip_if_unavailable=True
-EOF
-
-    sudo dnf config-manager --set-enabled fedora-cisco-openh264 2>/dev/null || true
+    info "Disabling problematic Cisco openh264 repository and setting up clean fallback..."
+    sudo dnf config-manager --set-disabled fedora-cisco-openh264 2>/dev/null || true
     
-    info "Installing openh264..."
-    if sudo dnf install -y openh264 gstreamer1-plugin-openh264 mozilla-openh264 2>/dev/null; then
-        progress "Cisco OpenH264 codec installed and 403 error mitigated successfully"
-    else
-        warning "OpenH264 installation had issues, but repository is mitigated for updates."
-    fi
+    # Убираем конфликтующие пакеты / ставим корректную замену если требуется
+    sudo dnf remove -y openh264 mozilla-openh264 2>/dev/null || true
+    
+    progress "Cisco openh264 repository handled safely"
 }
 
-# Install multimedia codecs
+# Install multimedia codecs & VA-API hardware acceleration
 install_multimedia_codecs() {
-    section "Installing multimedia codecs"
+    section "Installing multimedia codecs, FFmpeg & Hardware Acceleration (VA-API)"
     
+    # Сначала гарантируем наличие RPM Fusion
+    setup_rpmfusion
+
+    # Включаем полный ffmpeg (переход с free на nonfree версию)
+    info "Switching to full multimedia codecs from RPM Fusion..."
+    sudo dnf swap -y ffmpeg-free ffmpeg --allowerasing 2>/dev/null || sudo dnf install -y ffmpeg --allowerasing 2>/dev/null || warning "FFmpeg swap/install note"
+
     local codecs=(
         "gstreamer1-plugins-good"
         "gstreamer1-plugins-bad-free"
+        "gstreamer1-plugins-bad-freeworld"
         "gstreamer1-plugins-ugly"
         "gstreamer1-libav"
-        "ffmpeg"
         "libavcodec-extra"
         "a52dec"
         "libdvdread"
         "libdvdnav"
         "libdvdcss"
+        "mesa-vdpau-drivers"
+        "libva-utils"
     )
     
     for codec in "${codecs[@]}"; do
         info "Installing $codec..."
-        sudo dnf install -y "$codec" 2>/dev/null && progress "$codec installed" || warning "Could not install $codec"
+        sudo dnf install -y "$codec" 2>/dev/null && progress "$codec installed" || warning "Could not install $codec (may already be present or skipped)"
     done
+    
+    progress "Multimedia codecs and VA-API setup completed"
 }
 
 # Restore window buttons
@@ -351,8 +352,8 @@ print_menu() {
     
     echo -e "\n${CYAN}📦 REPOSITORIES & CODECS${NC}"
     print_item "2"  "Setup RPM Fusion repositories" "${PURPLE}"
-    print_item "3"  "Install Cisco OpenH264 codec (with 403 fix)" "${PURPLE}"
-    print_item "4"  "Install multimedia codecs"     "${PURPLE}"
+    print_item "3"  "Cisco OpenH264 mitigation & cleanup" "${PURPLE}"
+    print_item "4"  "Install multimedia codecs & VA-API" "${PURPLE}"
     print_item "5"  "System update"                 "${PURPLE}"
     
     echo -e "\n${CYAN}🛠️  SYSTEM TWEAKS${NC}"
@@ -370,7 +371,7 @@ print_menu() {
     echo ""
 }
 
-# Apply all settings (OpenH264/403 mitigation goes first)
+# Apply all settings (OpenH264 mitigation first, then codecs & rest)
 apply_all() {
     section "Applying all settings..."
     
